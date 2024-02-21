@@ -1,4 +1,5 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
+import { LoggedInOnly } from 'src/decorators/loggedInOnly.decorator';
 import { ProductsService } from './products.service';
 
 @Controller('products')
@@ -6,12 +7,15 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Get()
-  findAll() {
-    return this.productsService.findAll();
+  @LoggedInOnly()
+  async getProducts() {
+    const products = await this.productsService.getProducts();
+
+    return products;
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.productsService.findOne(+id);
+  @Get(':productId')
+  getProduct(@Param('productId', ParseIntPipe) productId: number) {
+    return this.productsService.getProduct(productId);
   }
 }

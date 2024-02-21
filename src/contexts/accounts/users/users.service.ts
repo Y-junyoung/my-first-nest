@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { User } from '@prisma/client';
 import { compare, hash } from 'bcrypt';
 import { sign } from 'jsonwebtoken';
@@ -13,10 +17,11 @@ export class UsersService {
   async signUp(dto: UsersSignUpDto) {
     const { email, password } = dto;
 
-    if (!email.trim()) throw new Error('No email!');
-    if (!isEmail(email)) throw new Error('Invalid email!');
-    if (!password.trim()) throw new Error('No password!');
-    if (password.length < 4) throw new Error('Too short password!');
+    if (!email.trim()) throw new BadRequestException('No email!');
+    if (!isEmail(email)) throw new BadRequestException('Invalid email!');
+    if (!password.trim()) throw new BadRequestException('No password!');
+    if (password.length < 4)
+      throw new BadRequestException('Too short password!');
 
     const encryptedPassword = await hash(password, 12);
 
@@ -35,25 +40,26 @@ export class UsersService {
 
     const accessToken = this.generateAccessToken(user);
 
-    return { accessToken: accessToken };
+    return accessToken;
   }
 
   async logIn(dto: UsersLogInDto) {
     const { email, password } = dto;
 
-    if (!email.trim()) throw new Error('No email!');
-    if (!isEmail(email)) throw new Error('Invalid email!');
-    if (!password.trim()) throw new Error('No password!');
-    if (password.length < 4) throw new Error('Too short password!');
+    if (!email.trim()) throw new BadRequestException('No email!');
+    if (!isEmail(email)) throw new BadRequestException('Invalid email!');
+    if (!password.trim()) throw new BadRequestException('No password!');
+    if (password.length < 4)
+      throw new BadRequestException('Too short password!');
 
     const user = await this.prismaService.user.findUnique({ where: { email } });
-    if (!user) throw new Error('No User!');
+    if (!user) throw new NotFoundException('No User!');
 
     // 비밀번호 유효한지?
     try {
       await compare(password, user.encryptedPassword);
     } catch (e) {
-      throw new Error('Invalid password!');
+      throw new BadRequestException('Invalid password!');
     }
 
     const accessToken = this.generateAccessToken(user);
@@ -62,9 +68,9 @@ export class UsersService {
 
   generateAccessToken(user: Pick<User, 'id' | 'email'>) {
     const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY;
-    const accessToken = sign({ email: user.id }, JWT_SECRET_KEY, {
+    const accessToken = sign({ email: user.email }, JWT_SECRET_KEY, {
       subject: String(user.id),
-      expiresIn: '5m',
+      expiresIn: '5d',
     });
 
     return accessToken;
